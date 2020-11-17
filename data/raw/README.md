@@ -1,0 +1,1 @@
+This data is the raw output from Reddit's API.
