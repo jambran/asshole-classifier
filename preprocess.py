@@ -13,6 +13,17 @@ import config
 from pathlib import Path
 import csv
 
+def does_commenter_think_OP_is_an_ass(comment_text: str) -> bool:
+    """
+    given the text from a comment, determine if the commenter thinks OP is an asshole or not
+    :param comment_text: the commenter's text
+    :return: True if the commenter thinks OP is an asshole
+    """
+    if 'YTA' in comment_text:
+        return True
+    if 'NTA' in comment_text:
+        return False
+    return None
 
 def is_asshole(submission: praw.models.reddit.submission.Submission):
     """
@@ -33,10 +44,13 @@ def is_asshole(submission: praw.models.reddit.submission.Submission):
     submission.comments.replace_more(limit=0)
     for comment in submission.comments:
         text = comment.body
-        if 'NTA' in text:
-            votes_for_NTA += 1
-        elif 'YTA' in text:
+        commenter_thinks_OP_is_ass = does_commenter_think_OP_is_an_ass(text)
+        if commenter_thinks_OP_is_ass is None:
+            continue
+        if commenter_thinks_OP_is_ass:
             votes_for_YTA += 1
+        else:
+            votes_for_NTA += 1
 
     return votes_for_YTA > votes_for_NTA
 
