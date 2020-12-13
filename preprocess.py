@@ -66,12 +66,12 @@ if __name__ == '__main__':
 
     data_path = Path('./data/raw/debug.csv')
     num_assholes = 0
-    with data_path.open('w', newline='') as f:
-        writer = csv.writer(f)
+    with data_path.open('w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f, delimiter=',', quotechar='|')
         writer.writerow(['annotation', 'title', 'text'])
         for i, submission in enumerate(reddit.subreddit("AmITheAsshole").new(limit=25)):
             title = submission.title
-            text = submission.selftext
+            text = submission.selftext.replace('\n', '')
             annotation = is_asshole(submission)
             if annotation:
                 num_assholes += 1
