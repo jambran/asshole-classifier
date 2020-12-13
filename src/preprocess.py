@@ -5,11 +5,10 @@ and output to file
 (maybe link with EC2?)
 '''
 import praw
-import os
 
 from praw.models import MoreComments
 
-import config
+from src import config
 from pathlib import Path
 import csv
 
