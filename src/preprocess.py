@@ -11,6 +11,8 @@ from praw.models import MoreComments
 from src import config
 from pathlib import Path
 import csv
+import logging
+
 
 def does_commenter_think_OP_is_an_ass(comment_text: str) -> bool:
     """
@@ -23,6 +25,7 @@ def does_commenter_think_OP_is_an_ass(comment_text: str) -> bool:
     if 'NTA' in comment_text:
         return False
     return None
+
 
 def is_asshole(submission: praw.models.reddit.submission.Submission):
     """
@@ -55,24 +58,33 @@ def is_asshole(submission: praw.models.reddit.submission.Submission):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        # filename='preprocess.log', filemode='w',
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        # console_level=logging.DEBUG,
+    )
     reddit = praw.Reddit(client_id=config.REDDIT_CLIENT_ID,
                          client_secret=config.REDDIT_CLIENT_SECRET,
                          user_agent=config.REDDIT_USER_AGENT,
                          username=config.REDDIT_USERNAME,
                          )
 
-    print('connection successful')
+    logging.info('connection successful')
 
-    data_path = Path('./data/raw/debug.csv')
+    num_posts = 5000
+    data_path = Path(f'./data/raw/{num_posts}.csv')
     num_assholes = 0
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
         writer.writerow(['is_asshole', 'title', 'text'])
-        for i, submission in enumerate(reddit.subreddit("AmITheAsshole").new(limit=25)):
+        for i, submission in enumerate(reddit.subreddit("AmITheAsshole").new(limit=num_posts)):
             title = submission.title
             text = submission.selftext.replace('\n', '')
             annotation = is_asshole(submission)
             if annotation:
                 num_assholes += 1
             writer.writerow([annotation, title, text])
+            if i % 100 == 0:
+                logging.info(f'{i} instances complete')
     print(f'num assholes: {num_assholes} out of {i} total posts. Percent {num_assholes / i}')
