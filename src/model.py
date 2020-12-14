@@ -7,27 +7,41 @@ from plotting_metrics import plot_confusion_matrix
 
 
 class AssholeClassifier(pl.LightningModule):
-    def __init__(self, learning_rate):
+    def __init__(self, learning_rate, possible_labels):
         super().__init__()
-        self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+        self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased',
+                                                                   num_labels=2,
+                                                                   output_attentions=False,
+                                                                   output_hidden_states=False)
         self.learning_rate = learning_rate
+        self.possible_labels = possible_labels
+        self.loss = torch.nn.CrossEntropyLoss()
+
+        # metrics for evaluation
+        self.acc = pl.metrics.Accuracy()
+        self.p = pl.metrics.Precision()
+        self.r = pl.metrics.Recall()
+        self.f1 = pl.metrics.F1()
 
 
-    def forward(self, title_ids, text_ids):
-        self.model(title_ids)
+    def forward(self, text_ids, attention_mask):
+        logits = self.model(text_ids,
+                            attention_mask=attention_mask)
+        return logits
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(),
                                 lr=self.learning_rate,
                                 )
     def step(self, batch, batch_idx):
-        logits = self.forward(batch['title_ids'],
-                              batch['text_ids'])
-        loss = self.loss(logits, batch['label'])
+        output = self.forward(batch['text_ids'].squeeze(),
+                              batch['attention_mask'].squeeze())
+        logits = output['logits']
+        loss = self.loss(logits, batch['is_asshole'])
         predictions = (logits.argmax(-1)).float()
         return {'loss': loss,
                 'predictions': predictions,
-                'labels': batch['labels'],
+                'labels': batch['is_asshole'],
                 }
 
     def epoch_end(self, outputs):
@@ -39,7 +53,9 @@ class AssholeClassifier(pl.LightningModule):
         loss = sum([o['loss'] for o in outputs])
         self.log('train_loss', loss)
 
-        figure = plot_confusion_matrix(labels, predictions, class_names = self.test_ds.get_labels())
+        figure = plot_confusion_matrix(labels.cpu(),
+                                       predictions.cpu(),
+                                       class_names=self.possible_labels)
         self.logger.experiment.add_figure(f'train_cm_epoch={self.current_epoch}', figure)
 
     def training_step(self, batch, batch_idx):
@@ -55,12 +71,12 @@ class AssholeClassifier(pl.LightningModule):
         self.epoch_end(outputs)
 
     def calculate_prf1(self, y_true, y_pred):
-        precision = sklearn.metrics.precision_score(y_true, y_pred)
-        recall = sklearn.metrics.recall_score(y_true, y_pred)
-        f1 = sklearn.metrics.f1_score(y_true, y_pred)
-        acc = sklearn.metrics.accuracy_score(y_true, y_pred)
-        return {'p': precision,
-                'r': recall,
-                'f1': f1,
-                'acc': acc,
+        # precision = sklearn.metrics.precision_score(y_true, y_pred)
+        # recall = sklearn.metrics.recall_score(y_true, y_pred)
+        # f1 = sklearn.metrics.f1_score(y_true, y_pred)
+        # acc = sklearn.metrics.accuracy_score(y_true, y_pred)
+        return {'p': self.p.compute(),
+                'r': self.r.compute(),
+                'f1': self.f1.compute(),
+                'acc': self.acc.compute(),
                 }

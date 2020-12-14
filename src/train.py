@@ -13,7 +13,8 @@ if __name__ == '__main__':
     torch.manual_seed(2)
     train_file = os.path.join('..', 'data', 'raw')
     data_module = RedditDataModule(data_dir=train_file)
-    model = AssholeClassifier(learning_rate=1E-3)
+    model = AssholeClassifier(learning_rate=1E-3,
+                              possible_labels=[0, 1])
     trainer = pl.Trainer(
         default_root_dir='logs',
         gpus=(1 if torch.cuda.is_available() else 0),
