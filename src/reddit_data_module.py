@@ -22,6 +22,8 @@ class RedditDataSet(Dataset):
             headers = next(reader)
             for instance in reader:
                 d = {headers[i]: instance[i] for i in range(len(headers))}
+                # need to convert the strings to ints: '0' -> 0
+                d['is_asshole'] = int(d['is_asshole'])
                 yield d
 
 
@@ -32,7 +34,9 @@ class RedditDataSet(Dataset):
         attributes_dict = self.id_to_instance[item]
         text = self.transform(attributes_dict['text'],
                               truncation=True,
-                              max_length=32)
+                              max_length=32,
+                              return_tensors='pt',
+                              )
         # title = self.transform(attributes_dict['title'])  # consider adding this feature later
         to_add = {'text_ids': text['input_ids'],
                   'attention_mask': text['attention_mask']}
