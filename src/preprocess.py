@@ -51,7 +51,7 @@ def is_asshole(submission: praw.models.reddit.submission.Submission):
         else:
             votes_for_NTA += 1
 
-    return votes_for_YTA > votes_for_NTA
+    return int(votes_for_YTA > votes_for_NTA)
 
 
 if __name__ == '__main__':
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     num_assholes = 0
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
-        writer.writerow(['annotation', 'title', 'text'])
+        writer.writerow(['is_asshole', 'title', 'text'])
         for i, submission in enumerate(reddit.subreddit("AmITheAsshole").new(limit=25)):
             title = submission.title
             text = submission.selftext.replace('\n', '')

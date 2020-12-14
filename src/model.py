@@ -1,36 +1,28 @@
 import pytorch_lightning as pl
 import torch
 import sklearn
+from transformers import BertForSequenceClassification
+
+from plotting_metrics import plot_confusion_matrix
+
 
 class AssholeClassifier(pl.LightningModule):
-    def __init(self):
+    def __init__(self, learning_rate):
         super().__init__()
+        self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+        self.learning_rate = learning_rate
 
 
-    def forward(self):
-        pass
+    def forward(self, title_ids, text_ids):
+        self.model(title_ids)
 
-    def prepare_data(self):
-        # set self.train_ds, self.val_ds, self.test_ds
-        pass
-
-    def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_ds,
-                                           batch_size=self.batch_size,
-                                           drop_last=False,
-                                           )
-
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_ds,
-                                           batch_size=self.batch_size,
-                                           drop_last=False,
-                                           )
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(),
+        return torch.optim.Adam(self.parameters(),
                                 lr=self.learning_rate,
                                 )
     def step(self, batch, batch_idx):
-        logits = self.forward(batch['input_ids'])
+        logits = self.forward(batch['title_ids'],
+                              batch['text_ids'])
         loss = self.loss(logits, batch['label'])
         predictions = (logits.argmax(-1)).float()
         return {'loss': loss,
@@ -50,7 +42,7 @@ class AssholeClassifier(pl.LightningModule):
         figure = plot_confusion_matrix(labels, predictions, class_names = self.test_ds.get_labels())
         self.logger.experiment.add_figure(f'train_cm_epoch={self.current_epoch}', figure)
 
-    def train_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx)
 
     def train_epoch_end(self, outputs):

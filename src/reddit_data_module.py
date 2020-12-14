@@ -5,30 +5,39 @@ from torch.utils.data import random_split, DataLoader, Dataset
 from torchvision import transforms
 from transformers import BertTokenizer
 import pandas as pd
+import csv
 
 
 class RedditDataSet(Dataset):
     def __init__(self, csv_file, transform):
-        self.df = pd.read_csv(csv_file)
+        self.csv_file = csv_file
         self.transform = transform
+        self.id_to_instance = {}
+        for i, instance in enumerate(self):
+            self.id_to_instance[i] = instance
+
+    def __iter__(self):
+        with open(self.csv_file, newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter=',', quotechar='|')
+            headers = next(reader)
+            for instance in reader:
+                d = {headers[i]: instance[i] for i in range(len(headers))}
+                yield d
+
 
     def __len__(self):
-        return len(self.df)
+        return len(self.id_to_instance)
 
     def __getitem__(self, item):
-        row = self.df.iloc[item]
-        text = row['text']
-        title = row['title']
-        label = row['annotation']
-        text_ids = self.transform(text)
-        title_ids = self.transform(title)
-        return {'title': title,
-                'title_ids': title_ids,
-                'text': text,
-                'text_ids': text_ids,
-                'label': label,
-                'id': item,
-                }
+        attributes_dict = self.id_to_instance[item]
+        text = self.transform(attributes_dict['text'],
+                              truncation=True,
+                              max_length=32)
+        # title = self.transform(attributes_dict['title'])  # consider adding this feature later
+        to_add = {'text_ids': text['input_ids'],
+                  'attention_mask': text['attention_mask']}
+        result = {**attributes_dict, **to_add}
+        return result
 
 
 class RedditDataModule(pl.LightningDataModule):
@@ -40,13 +49,16 @@ class RedditDataModule(pl.LightningDataModule):
     def prepare_data(self):
         # Use this method to do things that might write to disk or that need to be done only
         # from a single GPU in distributed settings.
-        self.transform = BertTokenizer('bert-base-uncased')
+        self.transform = BertTokenizer.from_pretrained('bert-base-uncased', max_length=32)
 
     def setup(self, stage=None):
         # There are also data operations you might want to perform on every GPU.
         data_file = os.path.join(self.data_dir, 'debug.csv')
         dataset = RedditDataSet(data_file, transform=self.transform)
-        self.train, self.val, self.test = random_split(dataset, [.8, .1, .1])
+        total_instances = len(dataset)
+        num_train, num_val = int(total_instances * .8), int(total_instances * .1)
+        num_test = total_instances - num_train - num_val
+        self.train, self.val, self.test = random_split(dataset, [num_train, num_val, num_test])
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=32)
