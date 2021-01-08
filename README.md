@@ -22,3 +22,14 @@ Reddit's [Am I The Asshole subreddit](https://www.reddit.com/r/AmItheAsshole/).
  `inference.py` is used to load the model and classify new instances.
  
  `models` holds all the model architectures we've tried.
+ 
+ ## installation
+ 1. create a virtual environment. On mac, use
+    ```
+    python3 -m venv venv_classhole
+    source venv_classhole/bin/activate
+    ```
+ 2. Install dependencies
+    ```
+    pip install -r requirements.txt
+    ```
