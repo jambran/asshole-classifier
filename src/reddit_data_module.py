@@ -26,7 +26,6 @@ class RedditDataSet(Dataset):
                 d['is_asshole'] = int(d['is_asshole'])
                 yield d
 
-
     def __len__(self):
         return len(self.id_to_instance)
 
@@ -46,9 +45,16 @@ class RedditDataSet(Dataset):
 
 class RedditDataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir: str):
+    def __init__(self,
+                 data_dir: str,
+                 data_filename: str,
+                 batch_size: int = 32,
+                 ):
         super().__init__()
+
         self.data_dir = data_dir
+        self.data_filename = data_filename
+        self.batch_size = batch_size
 
     def prepare_data(self):
         # Use this method to do things that might write to disk or that need to be done only
@@ -57,7 +63,7 @@ class RedditDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         # There are also data operations you might want to perform on every GPU.
-        data_file = os.path.join(self.data_dir, 'debug.csv')
+        data_file = os.path.join(self.data_dir, self.data_filename)
         dataset = RedditDataSet(data_file, transform=self.transform)
         total_instances = len(dataset)
         num_train, num_val = int(total_instances * .8), int(total_instances * .1)
@@ -65,10 +71,10 @@ class RedditDataModule(pl.LightningDataModule):
         self.train, self.val, self.test = random_split(dataset, [num_train, num_val, num_test])
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=32)
+        return DataLoader(self.train, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=32)
+        return DataLoader(self.val, batch_size=self.batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=32)
+        return DataLoader(self.test, batch_size=self.batch_size)
