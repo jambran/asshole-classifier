@@ -11,11 +11,11 @@ from model import AssholeClassifier
 from reddit_data_module import RedditDataModule
 
 if __name__ == '__main__':
-    exp_name = 'debug'
+    exp_name = '10k-instances'
     torch.manual_seed(2)
     train_dir = os.path.join('..', 'data', 'raw')
     data_module = RedditDataModule(data_dir=train_dir,
-                                   data_filename='5000.csv')
+                                   data_filename='10000.csv')
     model = AssholeClassifier(learning_rate=1E-2,
                               possible_labels=[0, 1])
     trainer = pl.Trainer(
@@ -23,7 +23,7 @@ if __name__ == '__main__':
         gpus=0,  # (1 if torch.cuda.is_available() else 0),
         max_epochs=10,
         fast_dev_run=False,
-        logger=pl.loggers.TensorBoardLogger('logs', name='lr=.01-epochs=10', version=0),
+        logger=pl.loggers.TensorBoardLogger('logs', name=exp_name, version=0),
         callbacks=[ModelCheckpoint(save_top_k=-1,
                                    save_last=True),
                    ]

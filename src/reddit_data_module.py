@@ -30,8 +30,9 @@ class RedditDataSet(Dataset):
     def __getitem__(self, item):
         attributes_dict = self.id_to_instance[item]
         text = self.transform(attributes_dict['text'],
-                              truncation=True,
                               max_length=32,
+                              truncation=True,
+                              padding='max_length',
                               return_tensors='pt',
                               )
         # title = self.transform(attributes_dict['title'])  # consider adding this feature later
