@@ -16,15 +16,15 @@ if __name__ == '__main__':
     train_dir = os.path.join('..', 'data', 'raw')
     data_module = RedditDataModule(data_dir=train_dir,
                                    data_filename='5000.csv')
-    model = AssholeClassifier(learning_rate=1E-3,
+    model = AssholeClassifier(learning_rate=1E-2,
                               possible_labels=[0, 1])
     trainer = pl.Trainer(
         default_root_dir='logs',
         gpus=0,  # (1 if torch.cuda.is_available() else 0),
         max_epochs=10,
         fast_dev_run=False,
-        logger=pl.loggers.TensorBoardLogger('logs', name='10-epochs', version=0),
-        callbacks=[ModelCheckpoint(period=1,
+        logger=pl.loggers.TensorBoardLogger('logs', name='lr=.01-epochs=10', version=0),
+        callbacks=[ModelCheckpoint(save_top_k=-1,
                                    save_last=True),
                    ]
     )

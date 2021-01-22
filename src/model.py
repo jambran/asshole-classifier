@@ -23,6 +23,8 @@ class AssholeClassifier(pl.LightningModule):
         self.r = pl.metrics.Recall()
         self.f1 = pl.metrics.F1()
 
+        self.save_hyperparameters()
+
 
     def forward(self, text_ids, attention_mask):
         logits = self.model(text_ids,
@@ -44,37 +46,33 @@ class AssholeClassifier(pl.LightningModule):
                 'labels': batch['is_asshole'],
                 }
 
-    def epoch_end(self, outputs):
+    def epoch_end(self, outputs, data_name):
         predictions = torch.cat([o['predictions'] for o in outputs], 0)
         labels = torch.cat([o['labels'] for o in outputs], 0)
-        prf1 = self.calculate_prf1(labels, predictions)
+        prf1 = self.calculate_prf1()
         for key, value in prf1.items():
-            self.log(f"train_{key}", value)
+            self.log(f"{data_name}_{key}", value)
         loss = sum([o['loss'] for o in outputs])
-        self.log('train_loss', loss)
+        self.log(f'{data_name}_loss', loss)
 
         figure = plot_confusion_matrix(labels.cpu(),
                                        predictions.cpu(),
                                        class_names=self.possible_labels)
-        self.logger.experiment.add_figure(f'train_cm_epoch={self.current_epoch}', figure)
+        self.logger.experiment.add_figure(f'{data_name}_cm_epoch={self.current_epoch}', figure)
 
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx)
 
     def train_epoch_end(self, outputs):
-        self.epoch_end(outputs)
+        self.epoch_end(outputs, 'train')
 
     def validation_step(self, batch, batch_idx):
         return self.step(batch, batch_idx)
 
     def validation_epoch_end(self, outputs):
-        self.epoch_end(outputs)
+        self.epoch_end(outputs, 'val')
 
-    def calculate_prf1(self, y_true, y_pred):
-        # precision = sklearn.metrics.precision_score(y_true, y_pred)
-        # recall = sklearn.metrics.recall_score(y_true, y_pred)
-        # f1 = sklearn.metrics.f1_score(y_true, y_pred)
-        # acc = sklearn.metrics.accuracy_score(y_true, y_pred)
+    def calculate_prf1(self,):
         return {'p': self.p.compute(),
                 'r': self.r.compute(),
                 'f1': self.f1.compute(),
