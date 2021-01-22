@@ -63,7 +63,7 @@ class AssholeClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx)
 
-    def train_epoch_end(self, outputs):
+    def training_epoch_end(self, outputs):
         self.epoch_end(outputs, 'train')
 
     def validation_step(self, batch, batch_idx):
