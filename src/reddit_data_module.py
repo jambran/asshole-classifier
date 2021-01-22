@@ -1,11 +1,9 @@
+import csv
 import os
 
 import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader, Dataset
-from torchvision import transforms
 from transformers import BertTokenizer
-import pandas as pd
-import csv
 
 
 class RedditDataSet(Dataset):
