@@ -25,7 +25,6 @@ class AssholeClassifier(pl.LightningModule):
 
         self.save_hyperparameters()
 
-
     def forward(self, text_ids, attention_mask):
         logits = self.model(text_ids,
                             attention_mask=attention_mask)
@@ -35,8 +34,9 @@ class AssholeClassifier(pl.LightningModule):
         return torch.optim.Adam(self.parameters(),
                                 lr=self.learning_rate,
                                 )
+
     def step(self, batch, batch_idx):
-        output = self.forward(batch['text_ids'].squeeze(),
+        output = self.forward(batch['title_ids'].squeeze(),
                               batch['attention_mask'].squeeze())
         logits = output['logits']
         loss = self.loss(logits, batch['is_asshole'])
@@ -49,7 +49,7 @@ class AssholeClassifier(pl.LightningModule):
     def epoch_end(self, outputs, data_name):
         predictions = torch.cat([o['predictions'] for o in outputs], 0)
         labels = torch.cat([o['labels'] for o in outputs], 0)
-        prf1 = self.calculate_prf1()
+        prf1 = self.calculate_prf1(predictions, labels)
         for key, value in prf1.items():
             self.log(f"{data_name}_{key}", value)
         loss = sum([o['loss'] for o in outputs])
@@ -72,9 +72,9 @@ class AssholeClassifier(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         self.epoch_end(outputs, 'val')
 
-    def calculate_prf1(self,):
-        return {'p': self.p.compute(),
-                'r': self.r.compute(),
-                'f1': self.f1.compute(),
-                'acc': self.acc.compute(),
+    def calculate_prf1(self, predictions, labels):
+        return {'p': self.p(predictions, labels),
+                'r': self.r(predictions, labels),
+                'f1': self.f1(predictions, labels),
+                'acc': self.acc(predictions, labels),
                 }
