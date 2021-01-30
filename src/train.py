@@ -11,12 +11,12 @@ from model import AssholeClassifier
 from reddit_data_module import RedditDataModule
 
 if __name__ == '__main__':
-    exp_name = 'lr=1-epochs=10'
+    exp_name = 'title-lr=.3'
     torch.manual_seed(2)
     train_dir = os.path.join('..', 'data', 'raw')
     data_module = RedditDataModule(data_dir=train_dir,
                                    data_filename='10000.csv')
-    model = AssholeClassifier(learning_rate=1,
+    model = AssholeClassifier(learning_rate=.3,
                               possible_labels=[0, 1])
     trainer = pl.Trainer(
         default_root_dir='logs',
