@@ -24,10 +24,18 @@ Reddit's [Am I The Asshole subreddit](https://www.reddit.com/r/AmItheAsshole/).
  `models` holds all the model architectures we've tried.
  
  ## installation
- 1. create a virtual environment. On mac, use
+ 1. create a virtual environment. 
     ```
     python3 -m venv venv_classhole
     source venv_classhole/bin/activate
+    ```
+ 3. activate your environment. On mac, use
+    ```
+    source venv_classhole/bin/activate
+    ```
+    On Windows, use
+    ```
+    venv_classhole\Scripts\activate
     ```
  2. Install dependencies
     ```
