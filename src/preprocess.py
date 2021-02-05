@@ -74,7 +74,7 @@ if __name__ == '__main__':
     api = PushshiftAPI(reddit)  # this allows for pagination of praw results
     logging.info('connection successful')
 
-    num_posts = 10_000
+    num_posts = 12_000
     data_path = Path(f'./data/raw/{num_posts}.csv')
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
@@ -98,7 +98,7 @@ if __name__ == '__main__':
                 title = submission.title
                 id_num = submission.id
                 text = submission.selftext.replace('\n', '')
-                if text == '[removed]':
+                if text == '[removed]' or text == '[deleted]':
                     continue
                 annotation = is_asshole(submission)
                 if annotation:
