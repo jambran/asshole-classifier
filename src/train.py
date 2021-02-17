@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # could try title + tldr
     # could try title + text
     lr = .01
-    exp_name = f'text-lr={lr}'
+    exp_name = f'text-max_len=400-lr={lr}'
     print(f"starting exp {exp_name}")
     torch.manual_seed(2)
     train_dir = os.path.join('..', 'data', 'raw')
