@@ -1,19 +1,17 @@
 '''
 algorithm to pull data from reddit,
-determine whether the poster is an asshole based on the commenters annotattions,
+determine whether the poster is an asshole based on the comments,
 and output to file
 (maybe link with EC2?)
 '''
-import praw
+import csv
+import logging
+from pathlib import Path
 
+import praw
 from praw.models import MoreComments
 
 from src import config
-from pathlib import Path
-import csv
-import logging
-import datetime
-from psaw import PushshiftAPI
 
 
 def does_commenter_think_OP_is_an_ass(comment_text: str) -> bool:
@@ -40,6 +38,9 @@ def is_asshole(submission: praw.models.reddit.submission.Submission):
     votes_for_NTA = 0
     votes_for_YTA = 0
 
+    upvotes_for_NTA = 0
+    upvotes_for_YTA = 0
+
     # This submission’s comment forest contains a number of MoreComments objects.
     # These objects represent the “load more comments”,
     # and “continue this thread” links encountered on the website.
@@ -53,10 +54,26 @@ def is_asshole(submission: praw.models.reddit.submission.Submission):
             continue
         if commenter_thinks_OP_is_ass:
             votes_for_YTA += 1
+            upvotes_for_YTA += comment.ups
         else:
             votes_for_NTA += 1
+            upvotes_for_NTA += 1
 
-    return int(votes_for_YTA > votes_for_NTA)
+    return int(votes_for_YTA > votes_for_NTA), {'YTA_votes': votes_for_YTA,
+                                                'YTA_upvotes': upvotes_for_YTA,
+                                                'NTA_votes': votes_for_NTA,
+                                                'NTA_upvotes': upvotes_for_NTA,
+                                                }
+
+
+def is_post_asking_AITA(title, text):
+    title = title.lower()
+    text = text.lower()
+    if 'meta' in title or 'update' in title:
+        return False
+    if text == '[removed]' or text == '[deleted]':
+        return False
+    return True
 
 
 if __name__ == '__main__':
@@ -71,39 +88,39 @@ if __name__ == '__main__':
                          user_agent=config.REDDIT_USER_AGENT,
                          username=config.REDDIT_USERNAME,
                          )
-    api = PushshiftAPI(reddit)  # this allows for pagination of praw results
     logging.info('connection successful')
 
-    num_posts = 12_000
-    data_path = Path(f'./data/raw/{num_posts}.csv')
+    num_posts = 100
+    data_path = Path(f'./data/raw/best-{num_posts}.csv')
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
-        writer.writerow(['is_asshole', 'title', 'text'])
+        writer.writerow(['is_asshole', 'YTA_votes', 'YTA_upvotes', 'NTA_votes', 'NTA_upvotes', 'title', 'text'])
 
         total_submissions = 0
         num_assholes = 0
 
         # we'll to paginate based on time. praw took away the ability to paginate on id :(
-        start_epoch = datetime.datetime.now()
+        latest_fullname = None
         while total_submissions < num_posts:
-            end_epoch = start_epoch -  datetime.timedelta(days=10)
-            submissions = api.search_submissions(limit=None,
-                                                 before=int(start_epoch.timestamp()),
-                                                 after=int(end_epoch.timestamp()),
-                                                 subreddit='AmITheAsshole',
-                                                 )
-            start_epoch = end_epoch
-
+            submissions = reddit.subreddit("AmITheAsshole").top(limit=10,
+                                                                params={'after': latest_fullname},
+                                                                )
             for submission in submissions:
+                latest_fullname = submission.fullname
                 title = submission.title
-                id_num = submission.id
-                text = submission.selftext.replace('\n', '')
-                if text == '[removed]' or text == '[deleted]':
+                if not is_post_asking_AITA():
+                    # these aren't the posts we're looking for
                     continue
-                annotation = is_asshole(submission)
+                id_num = submission.id
+                text = submission.selftext.replace('\n', ' ')
+
+                annotation, info = is_asshole(submission)
                 if annotation:
                     num_assholes += 1
-                writer.writerow([annotation, title, text])
+                writer.writerow([annotation,
+                                 info['YTA_votes'], info['YTA_upvotes'],
+                                 info['NTA_votes'], info['NTA_upvotes'],
+                                 title, text])
                 total_submissions += 1
                 if total_submissions % 100 == 0:
                     logging.info(f'{total_submissions} instances complete. {num_assholes} assholes found. '
