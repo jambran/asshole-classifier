@@ -90,11 +90,12 @@ if __name__ == '__main__':
                          )
     logging.info('connection successful')
 
-    num_posts = 100
-    data_path = Path(f'./data/raw/best-{num_posts}.csv')
+    num_posts = 14_000
+    data_path = Path(f'./data/raw/top-{num_posts}.csv')
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
-        writer.writerow(['is_asshole', 'YTA_votes', 'YTA_upvotes', 'NTA_votes', 'NTA_upvotes', 'title', 'text'])
+        writer.writerow(['is_asshole', 'YTA_votes', 'YTA_upvotes', 'NTA_votes', 'NTA_upvotes', 'post_upvotes',
+                         'title', 'text'])
 
         total_submissions = 0
         num_assholes = 0
@@ -102,17 +103,16 @@ if __name__ == '__main__':
         # we'll to paginate based on time. praw took away the ability to paginate on id :(
         latest_fullname = None
         while total_submissions < num_posts:
-            submissions = reddit.subreddit("AmITheAsshole").top(limit=10,
+            submissions = reddit.subreddit("AmITheAsshole").top(limit=100,
                                                                 params={'after': latest_fullname},
                                                                 )
             for submission in submissions:
                 latest_fullname = submission.fullname
                 title = submission.title
-                if not is_post_asking_AITA():
+                text = submission.selftext.replace('\n', ' ')
+                if not is_post_asking_AITA(title, text):
                     # these aren't the posts we're looking for
                     continue
-                id_num = submission.id
-                text = submission.selftext.replace('\n', ' ')
 
                 annotation, info = is_asshole(submission)
                 if annotation:
@@ -120,6 +120,7 @@ if __name__ == '__main__':
                 writer.writerow([annotation,
                                  info['YTA_votes'], info['YTA_upvotes'],
                                  info['NTA_votes'], info['NTA_upvotes'],
+                                 submission.ups,
                                  title, text])
                 total_submissions += 1
                 if total_submissions % 100 == 0:
