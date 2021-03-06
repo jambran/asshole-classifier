@@ -6,64 +6,51 @@ and output to file
 '''
 import csv
 import logging
+from collections import Counter
 from pathlib import Path
 
 import praw
 from praw.models import MoreComments
 
 from src import config
+from src.class_enum import ClassEnum
 
 
-def does_commenter_think_OP_is_an_ass(comment_text: str) -> bool:
+
+def does_commenter_think_OP_is_an_ass(comment_text: str):
     """
     given the text from a comment, determine if the commenter thinks OP is an asshole or not
     :param comment_text: the commenter's text
-    :return: True if the commenter thinks OP is an asshole
+    :return: The enum corresponding to the type of comment
     """
-    if 'YTA' in comment_text:
-        return True
-    if 'NTA' in comment_text:
-        return False
+    for type in ClassEnum:
+        if type.name in comment_text:
+            return type
     return None
 
 
 def is_asshole(submission: praw.models.reddit.submission.Submission):
     """
     iterate through the comments to find signals for asshole or not
-    NTA = not the asshole
-    YTA = you're the asshole
+    see src\class_enum.py for possible types
     :param submission: a praw.models.reddit.submission.Submission object
     :return: True if more comments have 'YTA' than 'NTA'
     """
-    votes_for_NTA = 0
-    votes_for_YTA = 0
-
-    upvotes_for_NTA = 0
-    upvotes_for_YTA = 0
-
-    # This submission’s comment forest contains a number of MoreComments objects.
-    # These objects represent the “load more comments”,
-    # and “continue this thread” links encountered on the website.
-    # To remove them, we can call replace_more with a limit of 0
-    # to remove ALL MoreComments
+    # following the subreddit's rules, we take the top voted comment to be the annotation
+    # see more [here](https://www.reddit.com/r/AmItheAsshole/wiki/faq#wiki_why_do_you_use_upvotes_to_determine_the_winning_judgment.3F_why_don.2019t_you_count_up_the_nta_and_yta_in_each_thread.3F)
+    commenter_thinks_OP_is = None
+    submission.comment_sort = 'top'
     submission.comments.replace_more(limit=0)
     for comment in submission.comments:
         text = comment.body
-        commenter_thinks_OP_is_ass = does_commenter_think_OP_is_an_ass(text)
-        if commenter_thinks_OP_is_ass is None:
+        commenter_thinks_OP_is = does_commenter_think_OP_is_an_ass(text)
+        if commenter_thinks_OP_is is None:
+            # skip over moderator comments (default to top position)
             continue
-        if commenter_thinks_OP_is_ass:
-            votes_for_YTA += 1
-            upvotes_for_YTA += comment.ups
-        else:
-            votes_for_NTA += 1
-            upvotes_for_NTA += 1
+        # we've found the top comment that labels OP as a class
+        break
 
-    return int(votes_for_YTA > votes_for_NTA), {'YTA_votes': votes_for_YTA,
-                                                'YTA_upvotes': upvotes_for_YTA,
-                                                'NTA_votes': votes_for_NTA,
-                                                'NTA_upvotes': upvotes_for_NTA,
-                                                }
+    return commenter_thinks_OP_is
 
 
 def is_post_asking_AITA(title, text):
@@ -91,24 +78,23 @@ if __name__ == '__main__':
     # api = PushshiftAPI(reddit)  # this allows for pagination of praw results
     logging.info('connection successful')
 
-    num_posts = 900
+    num_posts = 850
     data_path = Path(f'./data/raw/top-{num_posts}.csv')
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
         writer.writerow(['fullname', 'is_asshole',
-                         'YTA_votes', 'YTA_upvotes',
-                         'NTA_votes', 'NTA_upvotes',
                          'post_upvotes',
                          'title', 'text'])
 
         total_submissions = 0
-        num_assholes = 0
+        annotations = []
 
         # we'll to paginate based on time. praw took away the ability to paginate on id :(
         latest_fullname = None
         while total_submissions < num_posts:
             submissions = reddit.subreddit("AmITheAsshole").top(limit=100,
-                                                                params={'after': latest_fullname},
+                                                                params={'after': latest_fullname,
+                                                                        'comment_sort': 'top'},
                                                                 )
             # end_epoch = start_epoch -  datetime.timedelta(days=10)
             # submissions = api.search_submissions(limit=None,
@@ -126,18 +112,23 @@ if __name__ == '__main__':
                     continue
 
                 latest_fullname = submission.fullname
-                annotation, info = is_asshole(submission)
-                if annotation:
-                    num_assholes += 1
-                writer.writerow([latest_fullname, annotation,
-                                 info['YTA_votes'], info['YTA_upvotes'],
-                                 info['NTA_votes'], info['NTA_upvotes'],
+                annotation = is_asshole(submission)
+                annotations.append(annotation.name)
+                writer.writerow([latest_fullname, annotation.name,
                                  submission.ups,
                                  title, text])
                 total_submissions += 1
                 if total_submissions % 100 == 0:
-                    logging.info(f'{total_submissions} instances complete. {num_assholes} assholes found. '
-                                 f'{num_assholes / total_submissions * 100}%')
-
-    logging.info(f'num assholes: {num_assholes} out of {total_submissions} total posts. '
-                 f'Percent {num_assholes / total_submissions}')
+                    c = Counter(annotations)
+                    percentage_dict = {key: val / total_submissions for key, val in c.items()}
+                    logging.info(f'{total_submissions} instances complete. \n'
+                                 f'{c}\n'
+                                 f'        '
+                                 f'{percentage_dict}')
+    c = Counter(annotations)
+    percentage_dict = {key: val / total_submissions for key, val in c.items()}
+    logging.info(f'{total_submissions} total posts. '
+                 f'{c}\n'
+                 f'        '
+                 f'{percentage_dict}'
+                 )
