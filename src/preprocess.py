@@ -88,13 +88,17 @@ if __name__ == '__main__':
                          user_agent=config.REDDIT_USER_AGENT,
                          username=config.REDDIT_USERNAME,
                          )
+    # api = PushshiftAPI(reddit)  # this allows for pagination of praw results
     logging.info('connection successful')
 
-    num_posts = 14_000
+    num_posts = 900
     data_path = Path(f'./data/raw/top-{num_posts}.csv')
     with data_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter=',', quotechar='|')
-        writer.writerow(['is_asshole', 'YTA_votes', 'YTA_upvotes', 'NTA_votes', 'NTA_upvotes', 'post_upvotes',
+        writer.writerow(['fullname', 'is_asshole',
+                         'YTA_votes', 'YTA_upvotes',
+                         'NTA_votes', 'NTA_upvotes',
+                         'post_upvotes',
                          'title', 'text'])
 
         total_submissions = 0
@@ -106,18 +110,26 @@ if __name__ == '__main__':
             submissions = reddit.subreddit("AmITheAsshole").top(limit=100,
                                                                 params={'after': latest_fullname},
                                                                 )
+            # end_epoch = start_epoch -  datetime.timedelta(days=10)
+            # submissions = api.search_submissions(limit=None,
+            #                                      before=int(start_epoch.timestamp()),
+            #                                      after=int(end_epoch.timestamp()),
+            #                                      subreddit='AmITheAsshole',
+            #                                      )
+            # start_epoch = end_epoch
+
             for submission in submissions:
-                latest_fullname = submission.fullname
                 title = submission.title
                 text = submission.selftext.replace('\n', ' ')
                 if not is_post_asking_AITA(title, text):
                     # these aren't the posts we're looking for
                     continue
 
+                latest_fullname = submission.fullname
                 annotation, info = is_asshole(submission)
                 if annotation:
                     num_assholes += 1
-                writer.writerow([annotation,
+                writer.writerow([latest_fullname, annotation,
                                  info['YTA_votes'], info['YTA_upvotes'],
                                  info['NTA_votes'], info['NTA_upvotes'],
                                  submission.ups,
