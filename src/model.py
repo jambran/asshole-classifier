@@ -10,7 +10,7 @@ class AssholeClassifier(pl.LightningModule):
     def __init__(self, learning_rate, possible_labels):
         super().__init__()
         self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased',
-                                                                   num_labels=2,
+                                                                   num_labels=len(possible_labels),
                                                                    output_attentions=False,
                                                                    output_hidden_states=False)
         self.learning_rate = learning_rate
