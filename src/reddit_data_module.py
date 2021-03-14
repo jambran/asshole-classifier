@@ -31,16 +31,23 @@ class RedditDataSet(Dataset):
 
     def __getitem__(self, item):
         attributes_dict = self.id_to_instance[item]
-        title = self.transform(#attributes_dict['title'],
-                               attributes_dict['text'],
-                               max_length=100,
+        title = self.transform(attributes_dict['title'],
+                               max_length=32,
                                truncation=True,
                                padding='max_length',
                                return_tensors='pt',
                                )
-        # text = self.transform(attributes_dict['text'])  # consider adding this feature later
+        text = self.transform(attributes_dict['text'],
+                              max_length=400,
+                              truncation=True,
+                              padding='max_length',
+                              return_tensors='pt',
+                              )
         to_add = {'title_ids': title['input_ids'],
-                  'attention_mask': title['attention_mask']}
+                  'title_attention_mask': title['attention_mask'],
+                  'text_ids': text['input_ids'],
+                  'text_attention_mask': text['attention_mask'],
+                  }
         result = {**attributes_dict, **to_add}
         return result
 

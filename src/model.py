@@ -7,14 +7,19 @@ from plotting_metrics import plot_confusion_matrix
 
 
 class AssholeClassifier(pl.LightningModule):
-    def __init__(self, learning_rate, possible_labels):
+    def __init__(self, learning_rate, possible_labels, use_title=True, use_text=True):
         super().__init__()
         self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased',
                                                                    num_labels=len(possible_labels),
-                                                                   output_attentions=False,
+                                                                   output_attentions=True,
                                                                    output_hidden_states=False)
         self.learning_rate = learning_rate
         self.possible_labels = possible_labels
+        self.use_title = use_title
+        self.use_text = use_text
+        if not (use_title or use_text):
+            raise ValueError(f'At least one of `use_title` and `use_text` must be true. '
+                             f'Received use_title={use_title} and use_text={use_text}.')
         self.loss = torch.nn.CrossEntropyLoss()
 
         # metrics for evaluation
@@ -36,8 +41,16 @@ class AssholeClassifier(pl.LightningModule):
                                 )
 
     def step(self, batch, batch_idx):
-        output = self.forward(batch['title_ids'].squeeze(),
-                              batch['attention_mask'].squeeze())
+        ids = torch.LongTensor()
+        attention_mask = torch.LongTensor()
+        if self.use_title:
+            ids = torch.cat((ids, batch['title_ids'].squeeze()), dim=1)
+            attention_mask = torch.cat((attention_mask, batch['title_attention_mask'].squeeze()), dim=1)
+        if self.use_text:
+            ids = torch.cat((ids, batch['text_ids'].squeeze()), dim=1)
+            attention_mask = torch.cat((attention_mask, batch['text_attention_mask'].squeeze()), dim=1)
+        output = self.forward(ids,
+                              attention_mask)
         logits = output['logits']
         loss = self.loss(logits, batch['is_asshole'])
         predictions = (logits.argmax(-1)).float()
