@@ -6,8 +6,13 @@ from transformers import BertForSequenceClassification
 from plotting_metrics import plot_confusion_matrix
 
 
+def get_weight_tensor_from_class_frequencies(frequencies):
+    return torch.tensor([1 / frequency for frequency in frequencies])
+
+
 class AssholeClassifier(pl.LightningModule):
-    def __init__(self, learning_rate, possible_labels, use_title=True, use_text=True):
+    def __init__(self, learning_rate, possible_labels, class_frequencies=None,
+                 use_title=True, use_text=True):
         super().__init__()
         self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased',
                                                                    num_labels=len(possible_labels),
@@ -20,7 +25,10 @@ class AssholeClassifier(pl.LightningModule):
         if not (use_title or use_text):
             raise ValueError(f'At least one of `use_title` and `use_text` must be true. '
                              f'Received use_title={use_title} and use_text={use_text}.')
-        self.loss = torch.nn.CrossEntropyLoss()
+        if class_frequencies is None:
+            self.loss = torch.nn.CrossEntropyLoss()
+        else:
+            self.loss = torch.nn.CrossEntropyLoss(weight=get_weight_tensor_from_class_frequencies(class_frequencies))
 
         # metrics for evaluation
         self.acc = pl.metrics.Accuracy()
