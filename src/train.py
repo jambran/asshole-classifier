@@ -32,7 +32,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
         default_root_dir='logs',
         gpus=0,  # (1 if torch.cuda.is_available() else 0),
-        max_epochs=15,
+        max_epochs=10,
         fast_dev_run=exp_name == 'debug',
         logger=pl.loggers.TensorBoardLogger('logs', name=exp_name, version=0),
         callbacks=[ModelCheckpoint(save_top_k=-1,
