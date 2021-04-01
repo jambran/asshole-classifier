@@ -5,6 +5,8 @@ import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader, Dataset
 from transformers import BertTokenizer
 
+from class_enum import ClassEnum
+
 
 class RedditDataSet(Dataset):
     def __init__(self, csv_file, transform):
@@ -21,7 +23,7 @@ class RedditDataSet(Dataset):
             for instance in reader:
                 d = {headers[i]: instance[i] for i in range(len(headers))}
                 # need to convert the strings to ints: '0' -> 0
-                d['is_asshole'] = int(d['is_asshole'])
+                d['is_asshole'] = ClassEnum[d['is_asshole']].value
                 yield d
 
     def __len__(self):
