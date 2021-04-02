@@ -6,16 +6,29 @@ from transformers import BertForSequenceClassification
 from plotting_metrics import plot_confusion_matrix
 
 
+def get_weight_tensor_from_class_frequencies(frequencies):
+    return torch.tensor([1 / frequency for frequency in frequencies])
+
+
 class AssholeClassifier(pl.LightningModule):
-    def __init__(self, learning_rate, possible_labels):
+    def __init__(self, learning_rate, possible_labels, class_frequencies=None,
+                 use_title=True, use_text=True):
         super().__init__()
         self.model = BertForSequenceClassification.from_pretrained('bert-base-uncased',
                                                                    num_labels=len(possible_labels),
-                                                                   output_attentions=False,
+                                                                   output_attentions=True,
                                                                    output_hidden_states=False)
         self.learning_rate = learning_rate
         self.possible_labels = possible_labels
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.use_title = use_title
+        self.use_text = use_text
+        if not (use_title or use_text):
+            raise ValueError(f'At least one of `use_title` and `use_text` must be true. '
+                             f'Received use_title={use_title} and use_text={use_text}.')
+        if class_frequencies is None:
+            self.loss = torch.nn.CrossEntropyLoss()
+        else:
+            self.loss = torch.nn.CrossEntropyLoss(weight=get_weight_tensor_from_class_frequencies(class_frequencies))
 
         # metrics for evaluation
         self.acc = pl.metrics.Accuracy()
@@ -36,8 +49,16 @@ class AssholeClassifier(pl.LightningModule):
                                 )
 
     def step(self, batch, batch_idx):
-        output = self.forward(batch['title_ids'].squeeze(),
-                              batch['attention_mask'].squeeze())
+        ids = torch.LongTensor()
+        attention_mask = torch.LongTensor()
+        if self.use_title:
+            ids = torch.cat((ids, batch['title_ids'].squeeze()), dim=1)
+            attention_mask = torch.cat((attention_mask, batch['title_attention_mask'].squeeze()), dim=1)
+        if self.use_text:
+            ids = torch.cat((ids, batch['text_ids'].squeeze()), dim=1)
+            attention_mask = torch.cat((attention_mask, batch['text_attention_mask'].squeeze()), dim=1)
+        output = self.forward(ids,
+                              attention_mask)
         logits = output['logits']
         loss = self.loss(logits, batch['is_asshole'])
         predictions = (logits.argmax(-1)).float()
